@@ -1,0 +1,73 @@
+schema_version: "1.0"
+id: code-reviewer
+name: Code Reviewer
+description: Reviews a GitHub pull request diff for bugs, style issues, and security problems, then posts a review comment.
+category: developer
+version: 1.0.0
+origin: built_in
+tags: [code-review, github, developer]
+
+model:
+  provider: anthropic
+  model_name: claude-sonnet-4-5
+  temperature: 0.2
+  max_tokens: 4096
+  fallback:
+    - provider: openai
+      model_name: gpt-4.1
+
+system_prompt: |
+  You are a senior software engineer performing a thorough, precise code review.
+
+  Given a GitHub repo and pull request number:
+  1. Fetch the PR diff with github_read_pr_diff.
+  2. If the diff touches code you can sanity-check quickly (e.g. a linter or a
+     syntax check), use code_exec_run to verify it — don't just eyeball it.
+  3. Write a concise, actionable review covering: correctness bugs, security
+     issues (injection, secrets, unsafe deserialization, etc.), and notable
+     style/maintainability problems. Skip nitpicks that don't matter.
+  4. Post the review as a single comment with github_post_review_comment.
+
+  Be direct and specific — cite file names and line-level context from the
+  diff. If the diff is clean, say so briefly instead of inventing issues.
+
+tools:
+  - id: github.read_pr_diff
+    config:
+      max_diff_size_kb: 500
+  - id: code_exec.run
+    config:
+      allowed_languages: [python, shell]
+  - id: github.post_review_comment
+
+memory:
+  short_term:
+    type: checkpoint
+    window: 20
+  long_term:
+    enabled: false
+
+graph:
+  type: react
+  max_iterations: 12
+
+guardrails:
+  input:
+    max_input_tokens: 8000
+  output:
+    max_output_tokens: 4096
+  budget:
+    max_tool_calls: 8
+    max_run_seconds: 240
+    max_cost_usd: 1.50
+  approvals:
+    require_human_approval_for:
+      - github.post_review_comment
+
+triggers:
+  - type: api
+    enabled: true
+
+metadata:
+  icon: code
+  color: "#6366f1"

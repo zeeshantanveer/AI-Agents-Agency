@@ -1,0 +1,23 @@
+agent_id: test-generator
+description: Self-verifying loop — writes a test file, then runs it to confirm it passes.
+input: "Write tests for the add() function in math_utils.py"
+scripted_responses:
+  - content: ""
+    tool_calls:
+      - name: file_access_read
+        args: {path: "math_utils.py"}
+  - content: ""
+    tool_calls:
+      - name: file_access_write
+        args: {path: "test_math_utils.py", content: "def test_add():\n    assert add(1, 2) == 3\n"}
+  - content: ""
+    tool_calls:
+      - name: code_exec_run
+        args: {language: "python", code: "print('2 passed')"}
+  - content: "Wrote test_math_utils.py and confirmed the tests pass."
+expect:
+  status: succeeded
+  tool_calls_include:
+    - file_access.read
+    - file_access.write
+    - code_exec.run

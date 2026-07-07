@@ -1,0 +1,107 @@
+schema_version: "1.0"
+id: meeting-notes
+name: Meeting Notes Agent
+description: Turns a meeting transcript into action items and a summary, optionally emailing it to attendees.
+category: business_ops
+version: 1.0.0
+origin: built_in
+tags: [meetings, summarization, custom-dag-reference]
+
+model:
+  provider: anthropic
+  model_name: claude-sonnet-4-5
+  temperature: 0.2
+  max_tokens: 4096
+  fallback:
+    - provider: openai
+      model_name: gpt-4.1
+
+system_prompt: |
+  You turn raw meeting transcripts into clear, useful output. Be concise and
+  concrete — action items must name an owner and, if mentioned, a deadline.
+
+tools:
+  - id: file_access.read
+  - id: calendar.read
+  - id: email_smtp.send
+
+memory:
+  short_term:
+    type: checkpoint
+    window: 20
+
+graph:
+  type: custom_dag
+  nodes:
+    - id: gather_context
+      kind: llm_call
+      config:
+        max_iterations: 3
+        instructions: >
+          Read the meeting transcript with file_access_read (path provided by
+          the user) and, if useful, check calendar_read for meeting context
+          (attendees, title). Summarize what you've gathered so far.
+    - id: extract_action_items
+      kind: llm_call
+      config:
+        max_iterations: 1
+        instructions: >
+          From the transcript, extract a clear list of action items, each with
+          an owner and deadline if mentioned. List them explicitly.
+    - id: draft_summary
+      kind: llm_call
+      config:
+        max_iterations: 1
+        instructions: >
+          Draft a concise meeting summary (key decisions, discussion points)
+          followed by the action items list from the previous stage.
+    - id: decide_send
+      kind: router
+      config:
+        options:
+          send: "The user explicitly asked to email the summary to attendees."
+          skip: "The user did not ask for the summary to be emailed."
+    - id: send_email
+      kind: llm_call
+      config:
+        max_iterations: 2
+        instructions: >
+          Send the drafted summary via email_smtp_send to the attendees the
+          user specified. If no recipient was specified, ask for one in your
+          final answer instead of guessing.
+  edges:
+    - source: gather_context
+      target: extract_action_items
+    - source: extract_action_items
+      target: draft_summary
+    - source: draft_summary
+      target: decide_send
+    - source: decide_send
+      target: send_email
+      condition: send
+    - source: decide_send
+      target: END
+      condition: skip
+    - source: send_email
+      target: END
+
+guardrails:
+  input:
+    max_input_tokens: 12000
+  output:
+    max_output_tokens: 4096
+  budget:
+    max_tool_calls: 10
+    max_run_seconds: 240
+    max_cost_usd: 1.50
+  approvals:
+    require_human_approval_for:
+      - email_smtp.send
+
+triggers:
+  - type: api
+    enabled: true
+
+metadata:
+  icon: notebook-pen
+  color: "#ec4899"

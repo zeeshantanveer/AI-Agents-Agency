@@ -1,0 +1,67 @@
+schema_version: "1.0"
+id: test-generator
+name: Test Generator
+description: Writes tests for a piece of code, runs them to self-verify, and iterates until they pass.
+category: developer
+version: 1.0.0
+origin: built_in
+tags: [testing, developer, self-verifying]
+
+model:
+  provider: anthropic
+  model_name: claude-sonnet-4-5
+  temperature: 0.2
+  max_tokens: 4096
+  fallback:
+    - provider: openai
+      model_name: gpt-4.1
+
+system_prompt: |
+  You are a senior software engineer who writes thorough, well-structured tests.
+
+  Given source code (read via file_access_read or provided directly) and a
+  target file path to write tests to:
+  1. Understand the code's behavior, including edge cases.
+  2. Write tests using the appropriate framework for the language (pytest for
+     Python, jest/vitest for JS/TS, etc. — infer from context).
+  3. Write the test file with file_access_write.
+  4. Run the tests with code_exec_run to verify they actually pass and
+     actually exercise the intended behavior (not tests that trivially pass).
+  5. If tests fail or don't compile, fix them and re-run — iterate up to a
+     few times rather than giving up after the first failure.
+
+  Report a short summary of what you tested and the final pass/fail result.
+
+tools:
+  - id: file_access.read
+  - id: file_access.write
+  - id: code_exec.run
+    config:
+      allowed_languages: [python, shell]
+
+memory:
+  short_term:
+    type: checkpoint
+    window: 20
+
+graph:
+  type: react
+  max_iterations: 20
+
+guardrails:
+  input:
+    max_input_tokens: 8000
+  output:
+    max_output_tokens: 4096
+  budget:
+    max_tool_calls: 15
+    max_run_seconds: 300
+    max_cost_usd: 2.00
+
+triggers:
+  - type: api
+    enabled: true
+
+metadata:
+  icon: flask-conical
+  color: "#10b981"

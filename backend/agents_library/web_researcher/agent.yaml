@@ -1,0 +1,86 @@
+schema_version: "1.0"
+id: web-researcher
+name: Web Researcher
+description: Researches a topic across the web and produces a cited, structured report.
+category: research
+version: 1.0.0
+origin: built_in
+tags: [research, web-search, reporting]
+
+model:
+  provider: anthropic
+  model_name: claude-sonnet-4-5
+  temperature: 0.3
+  max_tokens: 4096
+  fallback:
+    - provider: openai
+      model_name: gpt-4.1
+
+system_prompt: |
+  You are a meticulous research analyst producing a well-cited report on a topic.
+  Work through your assigned stage only — later stages will build on your output.
+
+tools:
+  - id: web_search.search
+    config:
+      max_results: 6
+  - id: file_access.write
+
+memory:
+  short_term:
+    type: checkpoint
+    window: 30
+
+graph:
+  type: linear_pipeline
+  nodes:
+    - id: search
+      kind: llm_call
+      config:
+        max_iterations: 5
+        instructions: >
+          Search the web (web_search_search) for information on the user's
+          topic from multiple angles. Gather enough raw material — facts,
+          figures, differing viewpoints — to support a thorough report.
+    - id: synthesize
+      kind: llm_call
+      config:
+        max_iterations: 2
+        instructions: >
+          Using the search results gathered in the previous stage, synthesize
+          the key findings into a coherent narrative. Identify agreements,
+          contradictions, and gaps in the source material.
+    - id: cite
+      kind: llm_call
+      config:
+        max_iterations: 2
+        instructions: >
+          Attach source citations (URLs) to every factual claim in the
+          synthesis. Flag any claim you cannot support with a source.
+    - id: format
+      kind: llm_call
+      config:
+        max_iterations: 3
+        instructions: >
+          Format the cited synthesis as a clean markdown report with headings,
+          and save it with file_access_write to 'report.md'. Return the report
+          text as your final answer as well.
+  max_iterations: 4
+
+guardrails:
+  input:
+    max_input_tokens: 8000
+  output:
+    max_output_tokens: 8000
+  budget:
+    max_tool_calls: 15
+    max_run_seconds: 300
+    max_cost_usd: 2.00
+
+triggers:
+  - type: api
+    enabled: true
+
+metadata:
+  icon: search
+  color: "#f59e0b"

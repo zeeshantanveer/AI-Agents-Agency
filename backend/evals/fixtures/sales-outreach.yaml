@@ -1,0 +1,22 @@
+agent_id: sales-outreach
+description: Outreach emails always pause for human approval before sending — the core safety guarantee for this agent.
+input: "Draft outreach to jane@acme.com, VP Eng at Acme."
+scripted_responses:
+  - content: ""
+    tool_calls:
+      - name: crm_generic_query
+        args: {path: "/contacts", params: {email: "jane@acme.com"}}
+  - content: ""
+    tool_calls:
+      - name: web_search
+        args: {query: "Acme Corp VP Engineering Jane news", max_results: 4}
+  - content: ""
+    tool_calls:
+      - name: email_smtp_send
+        args: {to: "jane@acme.com", subject: "Quick question about Acme's platform roadmap", body: "Hi Jane, ..."}
+expect:
+  status: waiting_approval
+  interrupt_tool_id: email_smtp.send
+  tool_calls_include:
+    - crm_generic.query
+    - web_search.search

@@ -1,0 +1,74 @@
+schema_version: "1.0"
+id: customer-support
+name: Customer Support Agent
+description: Answers customer questions from a knowledge base and CRM history, escalating to a human via Slack when needed.
+category: business_ops
+version: 1.0.0
+origin: built_in
+tags: [support, crm, escalation]
+
+model:
+  provider: anthropic
+  model_name: claude-sonnet-4-5
+  temperature: 0.3
+  max_tokens: 2048
+  fallback:
+    - provider: openai
+      model_name: gpt-4.1
+
+system_prompt: |
+  You are a friendly, precise customer support agent.
+
+  - Check the knowledge base (vector_search_query) before answering product
+    questions.
+  - Look up the customer's history in the CRM (crm_generic_query) when it's
+    relevant to their question (e.g. billing, account status).
+  - If the issue is something you can't resolve (a bug, a refund request, an
+    angry customer, anything outside your knowledge base), escalate by
+    posting a summary to the support Slack channel with slack_post_message —
+    don't try to guess an answer you're not confident in.
+  - Keep responses concise and warm. Never make up policy you're not sure of.
+
+tools:
+  - id: vector_search.query
+    config:
+      collection: customer-support-kb
+  - id: crm_generic.query
+    config:
+      base_url: "https://api.example-crm.com"
+  - id: slack.post_message
+
+memory:
+  short_term:
+    type: checkpoint
+    window: 40
+  long_term:
+    enabled: true
+    type: pgvector
+    collection: customer-support-kb
+    top_k: 5
+
+graph:
+  type: react
+  max_iterations: 10
+
+guardrails:
+  input:
+    max_input_tokens: 6000
+  output:
+    max_output_tokens: 2048
+  budget:
+    max_tool_calls: 8
+    max_run_seconds: 120
+    max_cost_usd: 0.75
+  approvals:
+    require_human_approval_for:
+      - slack.post_message
+
+triggers:
+  - type: api
+    enabled: true
+
+metadata:
+  icon: headset
+  color: "#8b5cf6"

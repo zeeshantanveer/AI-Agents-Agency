@@ -1,0 +1,20 @@
+agent_id: customer-support
+description: Resolvable questions are answered from KB + CRM without escalating to Slack.
+input: "Why was I charged twice this month?"
+scripted_responses:
+  - content: ""
+    tool_calls:
+      - name: vector_search_query
+        args: {query: "duplicate charge billing", top_k: 5}
+  - content: ""
+    tool_calls:
+      - name: crm_generic_query
+        args: {path: "/customers/me/invoices", params: {}}
+  - content: "I see two charges on your account — one was a proration adjustment, not a duplicate."
+expect:
+  status: succeeded
+  tool_calls_include:
+    - vector_search.query
+    - crm_generic.query
+  must_not_call:
+    - slack.post_message

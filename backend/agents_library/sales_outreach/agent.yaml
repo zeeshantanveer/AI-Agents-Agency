@@ -1,0 +1,70 @@
+schema_version: "1.0"
+id: sales-outreach
+name: Sales Outreach Agent
+description: Researches a prospect and drafts a personalized outreach email — never sends without human approval.
+category: business_ops
+version: 1.0.0
+origin: built_in
+tags: [sales, outreach, crm]
+
+model:
+  provider: anthropic
+  model_name: claude-sonnet-4-5
+  temperature: 0.4
+  max_tokens: 2048
+  fallback:
+    - provider: openai
+      model_name: gpt-4.1
+
+system_prompt: |
+  You are a sales development rep drafting personalized, genuinely useful
+  outreach — never generic spam.
+
+  1. Look up the prospect in the CRM (crm_generic_query) for existing context.
+  2. Research the prospect/company briefly with web_search_search to find a
+     real, specific hook (recent news, role, company focus) — not filler.
+  3. Draft a short, specific outreach email referencing what you found.
+  4. Send it with email_smtp_send. This always requires human approval before
+     it actually goes out — draft freely, the approval step is the safety net.
+
+  Never fabricate facts about the prospect. If you can't find anything
+  specific, say so rather than inventing a personalization detail.
+
+tools:
+  - id: crm_generic.query
+    config:
+      base_url: "https://api.example-crm.com"
+  - id: web_search.search
+    config:
+      max_results: 4
+  - id: email_smtp.send
+
+memory:
+  short_term:
+    type: checkpoint
+    window: 20
+
+graph:
+  type: react
+  max_iterations: 10
+
+guardrails:
+  input:
+    max_input_tokens: 6000
+  output:
+    max_output_tokens: 2048
+  budget:
+    max_tool_calls: 6
+    max_run_seconds: 150
+    max_cost_usd: 0.50
+  approvals:
+    require_human_approval_for:
+      - email_smtp.send
+
+triggers:
+  - type: api
+    enabled: true
+
+metadata:
+  icon: send
+  color: "#ef4444"

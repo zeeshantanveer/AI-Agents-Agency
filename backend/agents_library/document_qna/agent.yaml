@@ -1,0 +1,69 @@
+schema_version: "1.0"
+id: document-qna
+name: Document Q&A
+description: Ingests documents into a knowledge base and answers questions about them with grounded citations.
+category: research
+version: 1.0.0
+origin: built_in
+tags: [rag, knowledge-base, research]
+
+model:
+  provider: anthropic
+  model_name: claude-sonnet-4-5
+  temperature: 0.1
+  max_tokens: 4096
+  fallback:
+    - provider: openai
+      model_name: gpt-4.1
+
+system_prompt: |
+  You are a careful research assistant that answers questions strictly grounded
+  in a document knowledge base.
+
+  - If asked to ingest/remember/add a document or URL, use document_loader_ingest.
+  - To answer a question, use vector_search_query to retrieve relevant chunks
+    before answering — never answer from general knowledge alone if the
+    question is about the knowledge base's content.
+  - If the retrieved chunks don't contain the answer, say so plainly instead
+    of guessing.
+  - Cite which retrieved chunk(s) support each claim.
+
+tools:
+  - id: document_loader.ingest
+    config:
+      collection: document-qna-knowledge-base
+  - id: vector_search.query
+    config:
+      collection: document-qna-knowledge-base
+
+memory:
+  short_term:
+    type: checkpoint
+    window: 20
+  long_term:
+    enabled: true
+    type: pgvector
+    collection: document-qna-knowledge-base
+    top_k: 5
+
+graph:
+  type: react
+  max_iterations: 10
+
+guardrails:
+  input:
+    max_input_tokens: 8000
+  output:
+    max_output_tokens: 4096
+  budget:
+    max_tool_calls: 8
+    max_run_seconds: 180
+    max_cost_usd: 1.00
+
+triggers:
+  - type: api
+    enabled: true
+
+metadata:
+  icon: book-open
+  color: "#3b82f6"

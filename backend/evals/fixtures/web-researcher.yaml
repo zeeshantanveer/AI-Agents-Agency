@@ -1,0 +1,21 @@
+agent_id: web-researcher
+description: linear_pipeline reference fixture — verifies all 4 stages run and the report gets saved.
+input: "Research the current state of small modular reactors."
+scripted_responses:
+  - content: ""
+    tool_calls:
+      - name: web_search
+        args: {query: "small modular reactors 2026 status", max_results: 6}
+  - content: "Gathered search results on SMR deployments and vendors."
+  - content: "Synthesis: SMRs are moving from design to early deployment in several countries."
+  - content: "Synthesis with citations: [1] IAEA report, [2] vendor announcement."
+  - content: ""
+    tool_calls:
+      - name: file_access_write
+        args: {path: "report.md", content: "# Small Modular Reactors\n\n..."}
+  - content: "Final formatted report saved to report.md."
+expect:
+  status: succeeded
+  tool_calls_include:
+    - web_search.search
+    - file_access.write

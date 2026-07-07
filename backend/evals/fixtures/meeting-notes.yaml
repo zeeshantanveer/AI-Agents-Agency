@@ -1,0 +1,18 @@
+agent_id: meeting-notes
+description: custom_dag reference fixture — router picks 'skip' so no email gets sent.
+input: "Summarize the transcript at transcript.txt, no need to email anyone."
+scripted_responses:
+  - content: ""
+    tool_calls:
+      - name: file_access_read
+        args: {path: "transcript.txt"}
+  - content: "Gathered transcript and context."
+  - content: "Action items: Alice to follow up with vendor by Friday."
+  - content: "Summary: the team agreed on the Q3 roadmap; one open action item."
+  - content: "skip"
+expect:
+  status: succeeded
+  tool_calls_include:
+    - file_access.read
+  must_not_call:
+    - email_smtp.send

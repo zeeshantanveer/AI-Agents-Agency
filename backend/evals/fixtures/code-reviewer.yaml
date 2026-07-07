@@ -1,0 +1,17 @@
+agent_id: code-reviewer
+description: Sensitive tool (posting a PR comment) must pause for human approval, not auto-post.
+input: "Review PR #42 in acme/widgets"
+scripted_responses:
+  - content: ""
+    tool_calls:
+      - name: github_read_pr_diff
+        args: {repo: "acme/widgets", pr_number: 42}
+  - content: ""
+    tool_calls:
+      - name: github_post_review_comment
+        args: {repo: "acme/widgets", pr_number: 42, body: "Looks good overall, one minor nit."}
+expect:
+  status: waiting_approval
+  interrupt_tool_id: github.post_review_comment
+  tool_calls_include:
+    - github.read_pr_diff

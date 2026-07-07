@@ -1,0 +1,13 @@
+agent_id: document-qna
+description: Answers must be grounded via vector_search, not answered from general knowledge alone.
+input: "What does our refund policy say about digital goods?"
+scripted_responses:
+  - content: ""
+    tool_calls:
+      - name: vector_search_query
+        args: {query: "refund policy digital goods", top_k: 5}
+  - content: "Per the knowledge base, digital goods are refundable within 14 days of purchase."
+expect:
+  status: succeeded
+  tool_calls_include:
+    - vector_search.query
